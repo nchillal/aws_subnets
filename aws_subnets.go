@@ -5,18 +5,25 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/fatih/color"
+	"github.com/manifoldco/promptui"
+	"github.com/nchillal/aws_profiles"
 	"github.com/olekukonko/tablewriter"
 )
 
-func getVPC() []string {
+func getVPC(awsProfile string, awsRegion string) []string {
 	// Create AWS session using default configuration
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithSharedConfigProfile(awsProfile),
+		config.WithRegion(awsRegion),
+	)
 	if err != nil {
 		panic("failed to load AWS configuration")
 	}
@@ -42,9 +49,13 @@ func getVPC() []string {
 	return vpc_ids
 }
 
-func getSubnetsForVpc(vpcID string) ([]types.Subnet, error) {
+func getSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]types.Subnet, error) {
 	// Create AWS session using default configuration
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithSharedConfigProfile(awsProfile),
+		config.WithRegion(awsRegion),
+	)
 	if err != nil {
 		panic("failed to load AWS configuration")
 	}
@@ -72,9 +83,74 @@ func getSubnetsForVpc(vpcID string) ([]types.Subnet, error) {
 }
 
 func main() {
-	vpc_id := getVPC()
-	fmt.Printf("\nVPC ID: %s\n\n", vpc_id[0])
-	subnets, err := getSubnetsForVpc(vpc_id[0])
+	profiles, err := aws_profiles.ListAWSProfiles()
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	prompt_profile := promptui.Select{
+		Label:        "Select AWS Profile",
+		Items:        profiles,
+		Size:         len(profiles),
+		HideSelected: true,
+	}
+
+	_, awsProfile, err := prompt_profile.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+		return
+	}
+
+	fmt.Printf("AWS Profile: %q\n", awsProfile)
+
+	// Load AWS SDK configuration
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithSharedConfigProfile(awsProfile),
+	)
+	if err != nil {
+		fmt.Println("Error loading AWS SDK configuration:", err)
+		return
+	}
+
+	// Create an EC2 client
+	ec2_client := ec2.NewFromConfig(cfg)
+
+	// Call DescribeRegions to get a list of regions
+	resp, err := ec2_client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	if err != nil {
+		fmt.Println("Error describing regions:", err)
+		return
+	}
+
+	// Print the list of regions
+	regions := make([]string, 0)
+	for _, region := range resp.Regions {
+		regions = append(regions, *region.RegionName)
+	}
+
+	prompt_region := promptui.Select{
+		Label:        "Select AWS Regions",
+		Items:        regions,
+		Size:         len(regions),
+		HideSelected: true,
+	}
+
+	_, awsRegion, err := prompt_region.Run()
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+		return
+	}
+
+	fmt.Printf("AWS Region: %q\n", awsRegion)
+
+	vpc_id := getVPC(awsProfile, awsRegion)
+	blue := color.New(color.Bold, color.FgBlue).SprintFunc()
+	fmt.Println("\n", blue("VPC ID:"), vpc_id[0], "\n")
+
+	subnets, err := getSubnetsForVpc(awsProfile, awsRegion, vpc_id[0])
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -90,18 +166,31 @@ func main() {
 						*subnet.SubnetId,
 						*subnet.CidrBlock,
 						*subnet.AvailabilityZone,
+						strconv.FormatInt(int64(*subnet.AvailableIpAddressCount), 10),
+						strconv.FormatBool(*subnet.DefaultForAz),
 					})
 				}
 			}
 		}
 	}
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
 	table.SetHeader([]string{
 		"Name",
 		"Subnet ID",
 		"CIDR Block",
 		"Availability Zone",
+		"Available Ip Count",
+		"Default For Az",
 	})
+	table.SetHeaderColor(
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor},
+	)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAutoWrapText(false)
 	sort.Slice(table_data, func(i, j int) bool { return table_data[i][0] < table_data[j][0] })
