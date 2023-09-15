@@ -89,12 +89,21 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+	// Create a Select template with custom formatting
+	templates := &promptui.SelectTemplates{
+		Label:    "{{ . }}?",
+		Active:   "\U0001F336 {{ . | cyan }}",
+		Inactive: "  {{ . | cyan }}",
+		Selected: "\U0001F336 {{ . | red | cyan }}",
+	}
+
 	// Prompt profiles
 	prompt_profile := promptui.Select{
 		Label:        "Select AWS Profile",
 		Items:        profiles,
 		Size:         len(profiles),
 		HideSelected: true,
+		Templates:    templates,
 	}
 
 	_, awsProfile, err := prompt_profile.Run()
@@ -137,6 +146,7 @@ func main() {
 		Items:        regions,
 		Size:         len(regions),
 		HideSelected: true,
+		Templates:    templates,
 	}
 
 	_, awsRegion, err := prompt_region.Run()
