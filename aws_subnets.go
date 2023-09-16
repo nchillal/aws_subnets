@@ -121,7 +121,7 @@ func main() {
 	// Create a Select template with custom formatting
 	templates := &promptui.SelectTemplates{
 		Label:    "{{ . }}?",
-		Active:   "\U0001F336 {{ . | cyan }}",
+		Active:   "🔥 {{ . | cyan }}",
 		Inactive: "  {{ . | cyan }}",
 		Selected: "\U0001F336 {{ . | red | cyan }}",
 	}
