@@ -82,6 +82,35 @@ func getSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]type
 	return resp.Subnets, nil
 }
 
+func listAWSRegions(awsProfile string) []string {
+	// Load AWS SDK configuration
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithSharedConfigProfile(awsProfile),
+	)
+	if err != nil {
+		fmt.Println("Error loading AWS SDK configuration:", err)
+		return nil
+	}
+
+	// Create an EC2 client
+	ec2_client := ec2.NewFromConfig(cfg)
+
+	// Call DescribeRegions to get a list of regions
+	resp, err := ec2_client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	if err != nil {
+		fmt.Println("Error describing regions:", err)
+		return nil
+	}
+
+	// Get list of regions
+	regions := make([]string, 0)
+	for _, region := range resp.Regions {
+		regions = append(regions, *region.RegionName)
+	}
+	return regions
+}
+
 func main() {
 	// Get list of profiles configured
 	profiles, err := aws_profiles.ListAWSProfiles()
@@ -115,31 +144,8 @@ func main() {
 
 	fmt.Printf("\nAWS Profile: %q\n", awsProfile)
 
-	// Load AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithSharedConfigProfile(awsProfile),
-	)
-	if err != nil {
-		fmt.Println("Error loading AWS SDK configuration:", err)
-		return
-	}
+	regions := listAWSRegions(awsProfile)
 
-	// Create an EC2 client
-	ec2_client := ec2.NewFromConfig(cfg)
-
-	// Call DescribeRegions to get a list of regions
-	resp, err := ec2_client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
-	if err != nil {
-		fmt.Println("Error describing regions:", err)
-		return
-	}
-
-	// Get list of regions
-	regions := make([]string, 0)
-	for _, region := range resp.Regions {
-		regions = append(regions, *region.RegionName)
-	}
 	// Prompt regions
 	prompt_region := promptui.Select{
 		Label:        "Select AWS Regions",
