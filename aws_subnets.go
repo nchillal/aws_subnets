@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -118,6 +119,14 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+	profileSearcher := func(input string, index int) bool {
+		profile := profiles[index]
+		name := strings.Replace(strings.ToLower(profile), " ", "", -1)
+		input = strings.Replace(strings.ToLower(input), " ", "", -1)
+
+		return strings.Contains(name, input)
+	}
+
 	// Create a Select template with custom formatting
 	templates := &promptui.SelectTemplates{
 		Label:    "{{ . }}?",
@@ -133,6 +142,7 @@ func main() {
 		Size:         len(profiles),
 		HideSelected: true,
 		Templates:    templates,
+		Searcher:     profileSearcher,
 	}
 
 	_, awsProfile, err := prompt_profile.Run()
@@ -146,6 +156,13 @@ func main() {
 
 	regions := listAWSRegions(awsProfile)
 
+	regionSearcher := func(input string, index int) bool {
+		region := regions[index]
+		name := strings.Replace(strings.ToLower(region), " ", "", -1)
+		input = strings.Replace(strings.ToLower(input), " ", "", -1)
+
+		return strings.Contains(name, input)
+	}
 	// Prompt regions
 	prompt_region := promptui.Select{
 		Label:        "Select AWS Regions",
@@ -153,6 +170,7 @@ func main() {
 		Size:         len(regions),
 		HideSelected: true,
 		Templates:    templates,
+		Searcher:     regionSearcher,
 	}
 
 	_, awsRegion, err := prompt_region.Run()
