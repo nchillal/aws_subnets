@@ -30,24 +30,24 @@ func getVPC(awsProfile string, awsRegion string) []string {
 	}
 
 	// Create EC2 client
-	ec2_client := ec2.NewFromConfig(cfg)
+	ec2Client := ec2.NewFromConfig(cfg)
 
 	// Prepare input parameters for DescribeVpcs API (no filter needed)
 	input := &ec2.DescribeVpcsInput{}
 
 	// Call DescribeVpcs API
-	resp, err := ec2_client.DescribeVpcs(context.TODO(), input)
+	resp, err := ec2Client.DescribeVpcs(context.TODO(), input)
 	if err != nil {
 		panic(fmt.Errorf("failed to describe VPCs: %w", err))
 	}
 
 	// Print information for each VPC
-	var vpc_ids []string
+	var vpcIds []string
 
 	for _, vpc := range resp.Vpcs {
-		vpc_ids = append(vpc_ids, *vpc.VpcId)
+		vpcIds = append(vpcIds, *vpc.VpcId)
 	}
-	return vpc_ids
+	return vpcIds
 }
 
 func getSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]types.Subnet, error) {
@@ -62,7 +62,7 @@ func getSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]type
 	}
 
 	// Create EC2 client
-	ec2_client := ec2.NewFromConfig(cfg)
+	ec2Client := ec2.NewFromConfig(cfg)
 
 	// Prepare input parameters for DescribeSubnets API
 	input := &ec2.DescribeSubnetsInput{
@@ -75,7 +75,7 @@ func getSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]type
 	}
 
 	// Call DescribeSubnets API
-	resp, err := ec2_client.DescribeSubnets(context.TODO(), input)
+	resp, err := ec2Client.DescribeSubnets(context.TODO(), input)
 	if err != nil {
 		panic(fmt.Errorf("failed to describe subnets: %w", err))
 	}
@@ -95,10 +95,10 @@ func listAWSRegions(awsProfile string) []string {
 	}
 
 	// Create an EC2 client
-	ec2_client := ec2.NewFromConfig(cfg)
+	ec2Client := ec2.NewFromConfig(cfg)
 
 	// Call DescribeRegions to get a list of regions
-	resp, err := ec2_client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	resp, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
 	if err != nil {
 		fmt.Println("Error describing regions:", err)
 		return nil
@@ -136,7 +136,7 @@ func main() {
 	}
 
 	// Prompt profiles
-	prompt_profile := promptui.Select{
+	promptProfile := promptui.Select{
 		Label:        "Select AWS Profile",
 		Items:        profiles,
 		Size:         len(profiles),
@@ -145,7 +145,7 @@ func main() {
 		Searcher:     profileSearcher,
 	}
 
-	_, awsProfile, err := prompt_profile.Run()
+	_, awsProfile, err := promptProfile.Run()
 
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
@@ -164,7 +164,7 @@ func main() {
 		return strings.Contains(name, input)
 	}
 	// Prompt regions
-	prompt_region := promptui.Select{
+	promptRegion := promptui.Select{
 		Label:        "Select AWS Regions",
 		Items:        regions,
 		Size:         len(regions),
@@ -173,7 +173,7 @@ func main() {
 		Searcher:     regionSearcher,
 	}
 
-	_, awsRegion, err := prompt_region.Run()
+	_, awsRegion, err := promptRegion.Run()
 
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
@@ -182,23 +182,23 @@ func main() {
 
 	fmt.Printf("AWS Region: %q\n", awsRegion)
 
-	vpc_id := getVPC(awsProfile, awsRegion)
-	if len(vpc_id) > 0 {
+	vpcId := getVPC(awsProfile, awsRegion)
+	if len(vpcId) > 0 {
 		blue := color.New(color.Bold, color.FgBlue).SprintFunc()
-		fmt.Println("\n", blue("VPC ID:"), vpc_id[0], "\n")
+		fmt.Println("\n", blue("VPC ID:"), vpcId[0], "\n")
 
-		subnets, err := getSubnetsForVpc(awsProfile, awsRegion, vpc_id[0])
+		subnets, err := getSubnetsForVpc(awsProfile, awsRegion, vpcId[0])
 		if err != nil {
 			fmt.Println(err)
 		}
 		// Subnet Information
-		table_data := [][]string{}
+		var tableData [][]string
 		for _, subnet := range subnets {
 			// Iterate over tags for this subnet
 			if len(subnet.Tags) > 0 {
 				for _, tag := range subnet.Tags {
 					if *tag.Key == "Name" {
-						table_data = append(table_data, []string{
+						tableData = append(tableData, []string{
 							*tag.Value,
 							*subnet.SubnetId,
 							*subnet.CidrBlock,
@@ -230,12 +230,12 @@ func main() {
 		)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetAutoWrapText(false)
-		sort.Slice(table_data, func(i, j int) bool { return table_data[i][0] < table_data[j][0] })
-		table.AppendBulk(table_data)
+		sort.Slice(tableData, func(i, j int) bool { return tableData[i][0] < tableData[j][0] })
+		table.AppendBulk(tableData)
 		if table.NumLines() > 0 {
 			table.Render()
 		} else {
-			color.Yellow("\nThere is no subnets created for VPC ", vpc_id[0])
+			color.Yellow("\nThere is no subnets created for VPC ", vpcId[0])
 		}
 	} else {
 		color.Yellow("\nThere is no VPC created")
