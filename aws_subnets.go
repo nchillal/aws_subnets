@@ -185,7 +185,7 @@ func main() {
 	vpcId := getVPC(awsProfile, awsRegion)
 	if len(vpcId) > 0 {
 		blue := color.New(color.Bold, color.FgBlue).SprintFunc()
-		fmt.Println("\n", blue("VPC ID:"), vpcId[0], "\n")
+		fmt.Printf(blue("\nVPC ID: %s\n"), vpcId[0])
 
 		subnets, err := getSubnetsForVpc(awsProfile, awsRegion, vpcId[0])
 		if err != nil {
