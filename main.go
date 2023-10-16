@@ -1,116 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws"
+	aws_subnets "github.com/nchillal/aws_subnets/pkg"
+
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 	"github.com/nchillal/aws_profiles"
 	"github.com/olekukonko/tablewriter"
 )
-
-func getVPC(awsProfile string, awsRegion string) []string {
-	// Create AWS session using default configuration
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithSharedConfigProfile(awsProfile),
-		config.WithRegion(awsRegion),
-	)
-	if err != nil {
-		panic("failed to load AWS configuration")
-	}
-
-	// Create EC2 client
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Prepare input parameters for DescribeVpcs API (no filter needed)
-	input := &ec2.DescribeVpcsInput{}
-
-	// Call DescribeVpcs API
-	resp, err := ec2Client.DescribeVpcs(context.TODO(), input)
-	if err != nil {
-		panic(fmt.Errorf("failed to describe VPCs: %w", err))
-	}
-
-	// Print information for each VPC
-	var vpcIds []string
-
-	for _, vpc := range resp.Vpcs {
-		vpcIds = append(vpcIds, *vpc.VpcId)
-	}
-	return vpcIds
-}
-
-func getSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]types.Subnet, error) {
-	// Create AWS session using default configuration
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithSharedConfigProfile(awsProfile),
-		config.WithRegion(awsRegion),
-	)
-	if err != nil {
-		panic("failed to load AWS configuration")
-	}
-
-	// Create EC2 client
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Prepare input parameters for DescribeSubnets API
-	input := &ec2.DescribeSubnetsInput{
-		Filters: []types.Filter{
-			{
-				Name:   aws.String("vpc-id"),
-				Values: []string{vpcID},
-			},
-		},
-	}
-
-	// Call DescribeSubnets API
-	resp, err := ec2Client.DescribeSubnets(context.TODO(), input)
-	if err != nil {
-		panic(fmt.Errorf("failed to describe subnets: %w", err))
-	}
-
-	return resp.Subnets, nil
-}
-
-func listAWSRegions(awsProfile string) []string {
-	// Load AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithSharedConfigProfile(awsProfile),
-	)
-	if err != nil {
-		fmt.Println("Error loading AWS SDK configuration:", err)
-		return nil
-	}
-
-	// Create an EC2 client
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Call DescribeRegions to get a list of regions
-	resp, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
-	if err != nil {
-		fmt.Println("Error describing regions:", err)
-		return nil
-	}
-
-	// Get list of regions
-	regions := make([]string, 0)
-	for _, region := range resp.Regions {
-		regions = append(regions, *region.RegionName)
-	}
-	return regions
-}
 
 func main() {
 	// Get list of profiles configured
@@ -154,7 +57,7 @@ func main() {
 
 	fmt.Printf("\nAWS Profile: %q\n", awsProfile)
 
-	regions := listAWSRegions(awsProfile)
+	regions := aws_subnets.ListAWSRegions(awsProfile)
 
 	regionSearcher := func(input string, index int) bool {
 		region := regions[index]
@@ -182,12 +85,17 @@ func main() {
 
 	fmt.Printf("AWS Region: %q\n", awsRegion)
 
-	vpcId := getVPC(awsProfile, awsRegion)
+	vpcId, err := aws_subnets.GetVPC(awsProfile, awsRegion)
+	if err != nil {
+		fmt.Println("\n", err)
+		return
+	}
+
 	if len(vpcId) > 0 {
 		blue := color.New(color.Bold, color.FgBlue).SprintFunc()
 		fmt.Printf(blue("\nVPC ID: %s\n"), vpcId[0])
 
-		subnets, err := getSubnetsForVpc(awsProfile, awsRegion, vpcId[0])
+		subnets, err := aws_subnets.GetSubnetsForVpc(awsProfile, awsRegion, vpcId[0])
 		if err != nil {
 			fmt.Println(err)
 		}
