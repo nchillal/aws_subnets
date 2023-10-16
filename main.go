@@ -87,7 +87,7 @@ func main() {
 
 	vpcId, err := aws_subnets.GetVPC(awsProfile, awsRegion)
 	if err != nil {
-		fmt.Println("\n", err)
+		color.Red("\n%s", err)
 		return
 	}
 
