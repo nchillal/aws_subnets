@@ -74,32 +74,3 @@ func GetSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]type
 
 	return resp.Subnets, nil
 }
-
-func ListAWSRegions(awsProfile string) []string {
-	// Load AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithSharedConfigProfile(awsProfile),
-	)
-	if err != nil {
-		fmt.Println("Error loading AWS SDK configuration:", err)
-		return nil
-	}
-
-	// Create an EC2 client
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Call DescribeRegions to get a list of regions
-	resp, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
-	if err != nil {
-		fmt.Println("Error describing regions:", err)
-		return nil
-	}
-
-	// Get list of regions
-	regions := make([]string, 0)
-	for _, region := range resp.Regions {
-		regions = append(regions, *region.RegionName)
-	}
-	return regions
-}

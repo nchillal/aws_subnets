@@ -5,85 +5,29 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 
+	aws_menu "github.com/nchillal/aws_menu"
 	aws_subnets "github.com/nchillal/aws_subnets/pkg"
 
 	"github.com/fatih/color"
-	"github.com/manifoldco/promptui"
-	"github.com/nchillal/aws_profiles"
 	"github.com/olekukonko/tablewriter"
 )
 
 func main() {
-	// Get list of profiles configured
-	profiles, err := aws_profiles.ListAWSProfiles()
+	awsProfile, err := aws_menu.PrintAwsProfileMenu()
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	profileSearcher := func(input string, index int) bool {
-		profile := profiles[index]
-		name := strings.Replace(strings.ToLower(profile), " ", "", -1)
-		input = strings.Replace(strings.ToLower(input), " ", "", -1)
-
-		return strings.Contains(name, input)
-	}
-
-	// Create a Select template with custom formatting
-	templates := &promptui.SelectTemplates{
-		Label:    "{{ . }}?",
-		Active:   "🔥 {{ . | cyan }}",
-		Inactive: "  {{ . | cyan }}",
-		Selected: "\U0001F336 {{ . | red | cyan }}",
-	}
-
-	// Prompt profiles
-	promptProfile := promptui.Select{
-		Label:        "Select AWS Profile",
-		Items:        profiles,
-		Size:         len(profiles),
-		HideSelected: true,
-		Templates:    templates,
-		Searcher:     profileSearcher,
-	}
-
-	_, awsProfile, err := promptProfile.Run()
-
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
+		fmt.Println(err)
 		return
 	}
 
-	fmt.Printf("\nAWS Profile: %q\n", awsProfile)
-
-	regions := aws_subnets.ListAWSRegions(awsProfile)
-
-	regionSearcher := func(input string, index int) bool {
-		region := regions[index]
-		name := strings.Replace(strings.ToLower(region), " ", "", -1)
-		input = strings.Replace(strings.ToLower(input), " ", "", -1)
-
-		return strings.Contains(name, input)
-	}
-	// Prompt regions
-	promptRegion := promptui.Select{
-		Label:        "Select AWS Regions",
-		Items:        regions,
-		Size:         len(regions),
-		HideSelected: true,
-		Templates:    templates,
-		Searcher:     regionSearcher,
-	}
-
-	_, awsRegion, err := promptRegion.Run()
-
+	awsRegion, err := aws_menu.PrintAwsRegionMenu(awsProfile)
 	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
+		fmt.Println(err)
 		return
 	}
 
-	fmt.Printf("AWS Region: %q\n", awsRegion)
+	color.Blue("AWS Profile: %s\n", awsProfile)
+	color.Blue("AWS Region: %s\n", awsRegion)
 
 	vpcId, err := aws_subnets.GetVPC(awsProfile, awsRegion)
 	if err != nil {
