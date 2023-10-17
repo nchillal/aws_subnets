@@ -26,8 +26,8 @@ func main() {
 		return
 	}
 
-	color.Blue("AWS Profile: %s\n", awsProfile)
-	color.Blue("AWS Region: %s\n", awsRegion)
+	color.Cyan("\nAWS Profile: %s\n", awsProfile)
+	color.Cyan("AWS Region: %s\n", awsRegion)
 
 	vpcId, err := aws_subnets.GetVPC(awsProfile, awsRegion)
 	if err != nil {
