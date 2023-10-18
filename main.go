@@ -6,21 +6,21 @@ import (
 	"sort"
 	"strconv"
 
-	aws_menu "github.com/nchillal/aws_menu"
-	aws_subnets "github.com/nchillal/aws_subnets/pkg"
+	awsMenu "github.com/nchillal/aws_menu"
+	awsSubnets "github.com/nchillal/aws_subnets/pkg"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 )
 
 func main() {
-	awsProfile, err := aws_menu.PrintAwsProfileMenu()
+	awsProfile, err := awsMenu.PrintAwsProfileMenu()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	awsRegion, err := aws_menu.PrintAwsRegionMenu(awsProfile)
+	awsRegion, err := awsMenu.PrintAwsRegionMenu(awsProfile)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -29,7 +29,7 @@ func main() {
 	color.Cyan("\nAWS Profile: %s\n", awsProfile)
 	color.Cyan("AWS Region: %s\n", awsRegion)
 
-	vpcId, err := aws_subnets.GetVPC(awsProfile, awsRegion)
+	vpcId, err := awsSubnets.GetVPC(awsProfile, awsRegion)
 	if err != nil {
 		color.Red("\n%s", err)
 		return
@@ -39,7 +39,7 @@ func main() {
 		blue := color.New(color.Bold, color.FgBlue).SprintFunc()
 		fmt.Printf(blue("\nVPC ID: %s\n"), vpcId[0])
 
-		subnets, err := aws_subnets.GetSubnetsForVpc(awsProfile, awsRegion, vpcId[0])
+		subnets, err := awsSubnets.GetSubnetsForVpc(awsProfile, awsRegion, vpcId[0])
 		if err != nil {
 			fmt.Println(err)
 		}
