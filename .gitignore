@@ -19,3 +19,7 @@
 
 # Go workspace file
 go.work
+/.idea/aws_subnets.iml
+/.idea/modules.xml
+/.idea/vcs.xml
+/.idea/.gitignore
