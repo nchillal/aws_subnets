@@ -74,3 +74,58 @@ func GetSubnetsForVpc(awsProfile string, awsRegion string, vpcID string) ([]type
 
 	return resp.Subnets, nil
 }
+
+func GetAllRegions(awsProfile string) ([]string, error) {
+	// Create AWS session using default configuration with us-east-1 to get regions
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithSharedConfigProfile(awsProfile),
+		config.WithRegion("us-east-1"),
+	)
+	if err != nil {
+		return []string{}, err
+	}
+
+	// Create EC2 client
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	// Call DescribeRegions API
+	resp, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	if err != nil {
+		return []string{}, err
+	}
+
+	var regions []string
+	for _, region := range resp.Regions {
+		regions = append(regions, *region.RegionName)
+	}
+	return regions, nil
+}
+
+type RegionVPCInfo struct {
+	Region string
+	VPCIds []string
+}
+
+func GetVPCsInAllRegions(awsProfile string) ([]RegionVPCInfo, error) {
+	regions, err := GetAllRegions(awsProfile)
+	if err != nil {
+		return []RegionVPCInfo{}, err
+	}
+
+	var regionsWithVPCs []RegionVPCInfo
+	for _, region := range regions {
+		vpcIds, err := GetVPC(awsProfile, region)
+		if err != nil {
+			// Skip regions where we can't access VPCs (might be disabled)
+			continue
+		}
+		if len(vpcIds) > 0 {
+			regionsWithVPCs = append(regionsWithVPCs, RegionVPCInfo{
+				Region: region,
+				VPCIds: vpcIds,
+			})
+		}
+	}
+	return regionsWithVPCs, nil
+}
