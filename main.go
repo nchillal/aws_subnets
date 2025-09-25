@@ -34,24 +34,31 @@ func main() {
 		return
 	}
 
-	// Process each region with VPCs
-	for _, regionInfo := range regionsWithVPCs {
+	// Process regions concurrently to get all subnet data
+	color.Cyan("Fetching subnet data for all regions concurrently...\n")
+	regionSubnetInfos, err := awsSubnets.GetAllSubnetsForRegions(awsProfile, regionsWithVPCs)
+	if err != nil {
+		color.Red("\n%s", err)
+		return
+	}
+
+	// Process and display results
+	for _, regionInfo := range regionSubnetInfos {
 		color.Blue("\n=== Region: %s ===", regionInfo.Region)
 
 		// Process each VPC in the region
-		for _, vpcId := range regionInfo.VPCIds {
-			blue := color.New(color.Bold, color.FgBlue).SprintFunc()
-			fmt.Printf(blue("\nVPC ID: %s\n"), vpcId)
-
-			subnets, err := awsSubnets.GetSubnetsForVpc(awsProfile, regionInfo.Region, vpcId)
-			if err != nil {
-				color.Red("Error getting subnets for VPC %s: %s", vpcId, err)
+		for _, vpcInfo := range regionInfo.VPCInfos {
+			if vpcInfo.Error != nil {
+				color.Red("Error getting subnets for VPC %s: %s", vpcInfo.VPCId, vpcInfo.Error)
 				continue
 			}
 
+			blue := color.New(color.Bold, color.FgBlue).SprintFunc()
+			fmt.Printf(blue("\nVPC ID: %s\n"), vpcInfo.VPCId)
+
 			// Subnet Information
 			var tableData [][]string
-			for _, subnet := range subnets {
+			for _, subnet := range vpcInfo.Subnets {
 				// Iterate over tags for this subnet
 				if len(subnet.Tags) > 0 {
 					for _, tag := range subnet.Tags {
@@ -94,7 +101,7 @@ func main() {
 				table.AppendBulk(tableData)
 				table.Render()
 			} else {
-				color.Yellow("No subnets found for VPC %s", vpcId)
+				color.Yellow("No subnets found for VPC %s", vpcInfo.VPCId)
 			}
 		}
 	}
